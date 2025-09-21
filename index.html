@@ -1,0 +1,539 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<link rel="icon" type="image/x-icon" href="favicon.ico">
+<link rel="icon" type="image/png" href="favicon.png">
+<meta property="og:title" content="Flores Amarillas — Para ti, Berenice"/>
+<meta property="og:description" content="Un reproductor con todas nuestras canciones y recuerdos para este dia."/>
+<meta property="og:image" content="https://TU-URL/og.png"/>
+<meta property="og:type" content="website"/>
+<meta property="og:url" content="https://TU-URL/"/>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"/>
+<title>Para ti, Berenice — Flores Amarillas</title>
+<style>
+:root{
+  --bg1:#0f0f0f; --bg2:#1c1c1c;
+  --gold:#D4AF37; --gold-soft:#F2D270;
+  --ink:#F5F5DC; --panel:rgba(26,26,26,.72);
+}
+*{margin:0;padding:0;box-sizing:border-box;}
+html{-webkit-text-size-adjust:100%;}
+body{
+  min-height:100vh;
+  background:linear-gradient(135deg,var(--bg1),var(--bg2));
+  color:var(--ink);
+  font-family:system-ui, -apple-system, "SF Pro Text", Arial, sans-serif;
+  text-align:center;
+  padding: max(16px, env(safe-area-inset-top)) max(16px, env(safe-area-inset-right))
+           max(16px, env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left));
+  -webkit-tap-highlight-color: rgba(0,0,0,0);
+}
+
+/* ---------- Pantalla de bloqueo ---------- */
+.lock-screen{
+  position:fixed; inset:0;
+  background: radial-gradient(120% 120% at 50% 30%, #151515 0%, #0b0b0b 70%);
+  display:flex; flex-direction:column; align-items:center; justify-content:center;
+  gap:18px; z-index:9999; padding: env(safe-area-inset-top) 20px env(safe-area-inset-bottom);
+}
+.lock-text{
+  color:var(--gold-soft);
+  font-family:"Cormorant Garamond", serif;
+  font-size:clamp(18px, 5vw, 28px);
+  letter-spacing:.4px;
+  text-shadow:0 0 14px rgba(212,175,55,.35);
+}
+.lock-icon{
+  width:clamp(120px,28vw,160px); height:clamp(120px,28vw,160px);
+  border-radius:50%;
+  border:3px solid var(--gold);
+  display:grid; place-items:center;
+  background:rgba(0,0,0,.62);
+  box-shadow:
+    0 0 0 1px rgba(212,175,55,.25),
+    0 12px 30px rgba(0,0,0,.5),
+    0 0 30px rgba(212,175,55,.35) inset;
+  cursor:pointer; will-change:transform;
+  animation:heartbeat 1.8s ease-in-out infinite;
+  transition:transform .3s ease, box-shadow .3s ease;
+}
+.lock-icon:hover{ transform:scale(1.06); box-shadow:0 0 0 1px rgba(212,175,55,.4), 0 16px 34px rgba(0,0,0,.55), 0 0 38px rgba(212,175,55,.45) inset; }
+.lock-svg{width:62%; height:62%;}
+.lock-body{ fill:#121212; stroke:var(--gold); stroke-width:3; }
+.lock-heart{ fill:rgba(212,175,55,.22); stroke:var(--gold); stroke-width:3; }
+.lock-shackle{ fill:none; stroke:var(--gold); stroke-width:3; stroke-linecap:round; transform-origin:50% 36%; transition:transform .55s ease; }
+.lock-screen.opening .lock-shackle{ transform: translateY(-10%) rotate(-18deg); }
+.lock-screen.opening .lock-icon{ animation:none; transform:scale(1.08) rotate(-4deg); }
+.lock-screen.opening .lock-icon::after{
+  content:""; position:absolute; inset:0; border-radius:50%;
+  box-shadow:0 0 0 0 rgba(212,175,55,.55);
+  animation:ripple .7s ease-out forwards;
+}
+@keyframes ripple{ to{ box-shadow:0 0 0 28px rgba(212,175,55,0); } }
+
+@keyframes heartbeat{
+  0%,100%{ transform:scale(1); }
+  30%{ transform:scale(1.06); }
+  55%{ transform:scale(0.98); }
+  80%{ transform:scale(1.03); }
+}
+
+/* ---------- Títulos ---------- */
+.title{font-family:"Cormorant Garamond",serif;color:var(--gold);font-size:clamp(28px,6vw,56px);margin-top:8px;}
+.subtitle{color:var(--gold-soft);font-family:"Cormorant Garamond",serif;font-style:italic;font-size:clamp(18px,3vw,26px);margin-bottom:18px;}
+
+/* ---------- Contenedor flor + halo ---------- */
+.sun-wrap{
+  width:min(80vw,420px); aspect-ratio:1/1; margin:0 auto 8px;
+  display:grid; place-items:center; border-radius:50%; position:relative;
+  box-shadow:0 0 40px rgba(212,175,55,.2);
+}
+.sun-wrap::before{
+  content:""; position:absolute; width:160%; height:160%; border-radius:50%;
+  background:radial-gradient(circle, rgba(212,175,55,.25), transparent 70%);
+  transform:scale(var(--haloS,1)); opacity:var(--haloO,.7);
+  transition:transform 60ms linear, opacity 60ms linear;
+  z-index:0; pointer-events:none;
+}
+svg#sunflower{
+  width:88%; max-width:380px; filter:drop-shadow(0 8px 24px rgba(0,0,0,.45));
+  z-index:1; transform:scale(var(--sunS,1)); transition:transform 60ms linear; will-change:transform;
+}
+.rotate-slow{ animation:spin 60s linear infinite; transform-origin:100px 100px; }
+@keyframes spin{ from{transform:rotate(0deg);} to{transform:rotate(360deg);} }
+
+/* brillo pétalos */
+@keyframes shine { 0%{stop-color:#F9E076;} 50%{stop-color:#FFF6B3;} 100%{stop-color:#F9E076;} }
+#pet stop:first-child{ animation:shine 4s infinite alternate; }
+
+/* ---------- Player ---------- */
+.panel{
+  margin:24px auto; max-width:720px; background:var(--panel);
+  border:1px solid rgba(212,175,55,.3); border-radius:18px; padding:18px;
+  box-shadow:0 20px 40px rgba(0,0,0,.22);
+}
+.song-title{margin-bottom:10px;font-size:18px;color:var(--gold);}
+.controls{display:flex;justify-content:space-around;align-items:center;margin-top:6px;gap:6px;}
+.ctrl-btn{
+  width:54px;height:54px;border-radius:50%;
+  background:rgba(0,0,0,.6);border:2px solid var(--gold);
+  display:grid;place-items:center;cursor:pointer;transition:transform .2s ease, box-shadow .2s ease;
+  touch-action:manipulation;
+}
+.ctrl-btn svg{width:24px;height:24px;fill:white;stroke:var(--gold);stroke-width:1.5;}
+.ctrl-btn:active{transform:scale(.95);}
+.play{width:70px;height:70px;border-radius:50%;background:rgba(0,0,0,.6);border:2px solid var(--gold);display:grid;place-items:center;}
+.play svg{width:30px;height:30px;fill:white;stroke:var(--gold);stroke-width:2;}
+
+.progress{margin:12px auto;width:92%;height:12px;background:rgba(255,255,255,.12);border-radius:999px;overflow:hidden;cursor:pointer;touch-action:none;}
+.fill{height:100%;width:0;background:linear-gradient(90deg,var(--gold),var(--gold-soft));}
+.time{display:flex;justify-content:space-between;font-size:14px;margin-top:4px;color:var(--ink);}
+
+/* Toggle arrow */
+.toggle-list{margin-top:12px;cursor:pointer;transition:transform .4s ease;}
+.toggle-list svg{width:30px;height:30px;fill:white;stroke:var(--gold);stroke-width:2;border-radius:50%;}
+
+/* Playlist */
+.container-extra{max-width:720px;margin:0 auto;display:none;flex-direction:column;gap:12px;margin-top:14px;}
+.container-extra.show{display:flex;}
+.playlist{display:flex;flex-direction:column;gap:8px;}
+.track{padding:10px 12px;border-radius:10px;background:rgba(255,255,255,.06);cursor:pointer;text-align:left;}
+.track.active{background:rgba(212,175,55,.2);color:var(--gold);}
+
+/* Divider + corazones */
+.divider-msg{margin:32px 0 16px;font-size:18px;font-style:italic;color:var(--gold-soft);}
+.messages{display:grid;gap:28px;margin-top:8px;justify-items:center;}
+
+.heart::before{
+  content:"";
+  position:absolute;
+  inset:0;
+  border-radius:50%;
+  background:radial-gradient(circle, rgba(128,0,128,0.35), transparent 70%);
+  transform:scale(1.15);
+  z-index:-1;
+  pointer-events:none;
+  animation:glowPulse 3s ease-in-out infinite;
+}
+@keyframes glowPulse{
+  0%,100%{ opacity:.55; transform:scale(1.15); }
+  50%    { opacity:.85; transform:scale(1.25); }
+}
+.heart{
+  position:relative;width:320px;height:280px;
+  background:url("corazon.png") no-repeat center / 110% 110%;
+  display:flex;align-items:center;justify-content:center;padding:40px;
+  color:var(--gold);font-size:18px;font-weight:bold;text-align:center;line-height:1.4;
+  opacity:0;transform:translateY(30px) scale(.98);transition:all .9s ease;
+  animation:heartbeat 1.8s ease-in-out infinite;
+}
+.heart.show{opacity:1;transform:translateY(0) scale(1);}
+
+.signature{color:var(--gold);font-style:italic;margin-top:18px;}
+
+/* CTA Spotify */
+.cta-wrap{ margin:28px 0 8px; display:flex; justify-content:center; }
+.cta-spotify{
+  --ring: var(--gold);
+  display:inline-flex; align-items:center; gap:10px;
+  padding:12px 18px; border-radius:999px;
+  background:rgba(0,0,0,.6);
+  border:2px solid var(--ring);
+  color:var(--ink); text-decoration:none; font-weight:600;
+  box-shadow:0 0 0 1px rgba(212,175,55,.25), 0 10px 24px rgba(0,0,0,.35);
+  transition:transform .18s ease, box-shadow .18s ease, background .18s ease;
+  -webkit-tap-highlight-color: transparent;
+}
+.cta-spotify:active{ transform:scale(.97); }
+.cta-spotify:hover{ box-shadow:0 0 0 1px rgba(212,175,55,.35), 0 14px 30px rgba(0,0,0,.45); background:rgba(0,0,0,.7); }
+.cta-spotify .ico{
+  width:22px; height:22px; display:block;
+}
+.cta-spotify .ico svg{
+  width:100%; height:100%;
+}
+.cta-spotify .ico svg .ring{ fill:none; stroke:var(--ring); stroke-width:2; opacity:.9; }
+.cta-spotify .ico svg .dot{ fill:#fff; opacity:.95; }
+.cta-spotify .ico svg .wave{ fill:none; stroke:#fff; stroke-linecap:round; stroke-width:2; opacity:.95; }
+.cta-caption{
+  margin-top:8px; font-size:13px; color:var(--gold-soft); opacity:.9;
+}
+
+
+/* Móvil muy pequeño */
+@media (max-width:480px){
+  .ctrl-btn{width:56px;height:56px;}
+  .play{width:78px;height:78px;}
+  .song-title{font-size:16px;}
+}
+</style>
+</head>
+<body>
+
+
+<!-- Pantalla inicial con cerradura dorada -->
+<div class="lock-screen" id="lockScreen" role="dialog" aria-label="Pantalla de desbloqueo">
+  <div class="lock-text">Toca para abrir</div>
+  <button class="lock-icon" id="unlockBtn" aria-label="Desbloquear">
+    <svg class="lock-svg" viewBox="0 0 100 100">
+      <path class="lock-shackle" d="M30,38 a20,20 0 0 1 40,0" />
+      <path class="lock-heart" d="M50,78 L30,62 C22,55 22,43 30,37 C36,32 44,34 50,40 C56,34 64,32 70,37 C78,43 78,55 70,62 Z"/>
+      <rect class="lock-body" x="32" y="48" rx="6" ry="6" width="36" height="30" fill="rgba(0,0,0,.6)"/>
+      <circle cx="50" cy="62" r="5" fill="none" stroke="var(--gold)" stroke-width="3"/>
+      <rect x="48.5" y="67" width="3" height="7" fill="var(--gold)"/>
+    </svg>
+  </button>
+</div>
+
+<h1 class="title">Para ti, Berenice</h1>
+<p class="subtitle">Flores amarillas para un día de paz</p>
+
+<div class="sun-wrap" id="sunWrap">
+  <!-- Ramo con tallos + 4 flores -->
+  <svg class="" id="sunflower" viewBox="0 0 300 320" aria-label="Ramo de flores amarillas">
+    <defs>
+      <!-- pétalo -->
+      <radialGradient id="pet" cx="50%" cy="50%">
+        <stop offset="0%" stop-color="#F9E076"/>
+        <stop offset="100%" stop-color="#D4AF37"/>
+      </radialGradient>
+      <!-- centro -->
+      <radialGradient id="cen" cx="50%" cy="50%">
+        <stop offset="0%" stop-color="#3a2c1a"/>
+        <stop offset="100%" stop-color="#1e160d"/>
+      </radialGradient>
+      <!-- verde tallo y hojas -->
+      <linearGradient id="stemG" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" stop-color="#2e7d32"/>
+        <stop offset="100%" stop-color="#1b5e20"/>
+      </linearGradient>
+      <linearGradient id="leafG" x1="0" y1="0" x2="1" y2="1">
+        <stop offset="0%" stop-color="#2ecc71"/>
+        <stop offset="100%" stop-color="#1fa85a"/>
+      </linearGradient>
+
+      <!-- símbolo de cabeza de flor -->
+      <g id="head" transform="scale(0.9)">
+        <g class="rotate-slow">
+          <g id="petalPath">
+            <path d="M100,90 Q120,70 120,50 Q100,20 80,50 Q80,70 100,90 Z" fill="url(#pet)"/>
+          </g>
+          <!-- 16 pétalos alrededor del centro (cx,cy=100,100 en el símbolo) -->
+          <use href="#petalPath" transform="rotate(0 100 100)"/>
+          <use href="#petalPath" transform="rotate(22.5 100 100)"/>
+          <use href="#petalPath" transform="rotate(45 100 100)"/>
+          <use href="#petalPath" transform="rotate(67.5 100 100)"/>
+          <use href="#petalPath" transform="rotate(90 100 100)"/>
+          <use href="#petalPath" transform="rotate(112.5 100 100)"/>
+          <use href="#petalPath" transform="rotate(135 100 100)"/>
+          <use href="#petalPath" transform="rotate(157.5 100 100)"/>
+          <use href="#petalPath" transform="rotate(180 100 100)"/>
+          <use href="#petalPath" transform="rotate(202.5 100 100)"/>
+          <use href="#petalPath" transform="rotate(225 100 100)"/>
+          <use href="#petalPath" transform="rotate(247.5 100 100)"/>
+          <use href="#petalPath" transform="rotate(270 100 100)"/>
+          <use href="#petalPath" transform="rotate(292.5 100 100)"/>
+          <use href="#petalPath" transform="rotate(315 100 100)"/>
+          <use href="#petalPath" transform="rotate(337.5 100 100)"/>
+        </g>
+        <circle cx="100" cy="100" r="26" fill="url(#cen)"/>
+      </g>
+
+      <!-- hoja reutilizable -->
+      <path id="leaf" d="M0,0 C18,-10 34,-10 52,0 C34,16 18,16 0,0 Z" fill="url(#leafG)"/>
+    </defs>
+
+    <!-- BASE de tallos -->
+    <g transform="translate(150,300)">
+      <!-- tallos (líneas con curvas hacia cada flor) -->
+      <path d="M0,0 C-10,-30 -20,-70 -40,-120" stroke="url(#stemG)" stroke-width="7" stroke-linecap="round" fill="none"/>
+      <path d="M0,0 C10,-30 25,-70 45,-120" stroke="url(#stemG)" stroke-width="7" stroke-linecap="round" fill="none"/>
+      <path d="M0,0 C-2,-28 0,-85 0,-140" stroke="url(#stemG)" stroke-width="7" stroke-linecap="round" fill="none"/>
+      <path d="M0,0 C22,-26 36,-60 62,-110" stroke="url(#stemG)" stroke-width="7" stroke-linecap="round" fill="none"/>
+      <!-- hojas en tallos -->
+      <g opacity="0.95">
+        <use href="#leaf" transform="translate(20,-30) rotate(-25) scale(1.0)"/>
+        <use href="#leaf" transform="translate(-15,-50) rotate(190) scale(1.1)"/>
+        <use href="#leaf" transform="translate(-35,-95) rotate(-35) scale(0.95)"/>
+        <use href="#leaf" transform="translate(-30,-100) rotate(150) scale(1.0)"/>
+        <use href="#leaf" transform="translate(-4,-120) rotate(-8) scale(1.05)"/>
+        <use href="#leaf" transform="translate(45,-110) rotate(150) scale(0.95)"/>
+      </g>
+    </g>
+
+    <!-- FLOR #1 (izquierda) -->
+    <g transform="translate(25,90) scale(0.82)">
+      <use href="#head"/>
+    </g>
+
+    <!-- FLOR #2 (derecha) -->
+    <g transform="translate(70,60) scale(0.82)">
+      <use href="#head"/>
+    </g>
+
+    <!-- FLOR #3 (centro alto) -->
+    <g transform="translate(115,55) scale(0.92)">
+      <use href="#head"/>
+    </g>
+
+    <!-- FLOR #4 (alto derecha) — borra este bloque para quedarte con 3 -->
+    <g transform="translate(150,110) scale(0.75)">
+      <use href="#head"/>
+    </g>
+  </svg>
+</div>
+
+<section class="panel">
+  <div class="song-title" id="songTitle">Selecciona una canción</div>
+  <div class="controls">
+    <button class="ctrl-btn" id="shuffle" aria-label="Aleatorio">
+      <svg viewBox="0 0 24 24"><path d="M17 3h4v4h-2V5h-2V3zM3 5h6l4 6-4 6H3v-2h5.2l2.8-4-2.8-4H3V5zM17 15h2v-2h2v4h-4v-2z"/></svg>
+    </button>
+    <button class="ctrl-btn" id="prev" aria-label="Anterior">
+      <svg viewBox="0 0 24 24"><path d="M6 19V5h2v14H6zm3-7l9-7v14l-9-7z"/></svg>
+    </button>
+    <button class="play" id="playBtn" aria-label="Reproducir / Pausar">
+      <svg id="playIcon" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+    </button>
+    <button class="ctrl-btn" id="next" aria-label="Siguiente">
+      <svg viewBox="0 0 24 24"><path d="M15 12L6 5v14l9-7zm2-7h2v14h-2z"/></svg>
+    </button>
+    <button class="ctrl-btn" id="repeat" aria-label="Repetir">
+      <svg viewBox="0 0 24 24"><path d="M17 1l4 4-4 4V6H7a5 5 0 0 0-5 5v2h2v-2a3 3 0 0 1 3-3h10V1zm-2 17H7v-3l-4 4 4 4v-3h8a3 3 0 0 0 3-3v-2h-2v2a1 1 0 0 1-1 1z"/></svg>
+    </button>
+  </div>
+
+  <div class="progress" id="bar"><div class="fill" id="fill"></div></div>
+  <div class="time"><span id="cur">0:00</span><span id="dur">0:00</span></div>
+
+  <div class="toggle-list" id="toggleList">
+    <svg id="arrow" viewBox="0 0 24 24"><path d="M12 16L6 10h12z"/></svg>
+  </div>
+
+ <div class="container-extra" id="extra">
+  <div class="playlist" id="playlist">
+
+    <div class="track" data-src="Musica/Rio Roma – Mi persona favorita.mp3">1. Río Roma – Mi persona favorita</div>
+    <div class="track" data-src="Musica/Camila - Todo Cambió.mp3">2. Camila – Todo Cambió</div>
+    <div class="track" data-src="Musica/Alex Ubago - Estar contigo.mp3">3. Alex Ubago – Estar contigo</div>
+    <div class="track" data-src="Musica/Carla Morrison – Compartir.mp3">4. Carla Morrison – Compartir</div>
+    <div class="track" data-src="Musica/Pablo Alboran - Solamente Tú.mp3">5. Pablo Alborán – Solamente Tú</div>
+    <div class="track" data-src="Musica/Carlos Rivera - Solo Tú.mp3">6. Carlos Rivera – Sólo Tú</div>
+    <div class="track" data-src="Musica/Axel - Te Voy A Amar.mp3">7. Axel – Te Voy A Amar</div>
+    <div class="track" data-src="Musica/Sin Bandera - Entra En Mi Vida.mp3">8. Sin Bandera – Entra En Mi Vida</div>
+    <div class="track" data-src="Musica/Sebastián Yatra - Como Mirarte.mp3">9. Sebastián Yatra – Como Mirarte</div>
+    <div class="track" data-src="Musica/Chayanne - Me Enamoré de Ti.mp3">10. Chayanne – Me Enamoré de Ti</div>
+
+    <div class="track" data-src="Musica/Juanes - A Dios Le Pido.mp3">11. Juanes – A Dios Le Pido</div>
+    <div class="track" data-src="Musica/Luis Miguel - Sabes Una Cosa.mp3">12. Luis Miguel – Sabes Una Cosa</div>
+    <div class="track" data-src="Musica/Jesse y joy - Dueles.mp3">13. Jesse & Joy – Dueles</div>
+    <div class="track" data-src="Musica/Christian Nodal - Te Fallé.mp3">14. Christian Nodal – Te Fallé</div>
+    <div class="track" data-src="Musica/Morat - Labios Rotos.mp3">15. Morat – Labios Rotos</div>
+    <div class="track" data-src="Musica/3AM - Distancia.mp3">16. 3AM – Distancia</div>
+    <div class="track" data-src="Musica/Enjambre - Visita.mp3">17. Enjambre – Visita</div>
+    <div class="track" data-src="Musica/Alejandro Fernández - Me Hace Tanto Bien.mp3">18. Alejandro Fernández – Me Hace Tanto Bien</div>
+    <div class="track" data-src="Musica/Chino y Nacho - Niña Bonita.mp3">19. Chino y Nacho – Niña Bonita</div>
+    <div class="track" data-src="Musica/Nigga, Flex - Si No Te Tengo.mp3">20. Nigga (Flex) – Si No Te Tengo</div>
+
+    <div class="track" data-src="Musica/Kalimba - Sólo Déjate Amar.mp3">21. Kalimba – Sólo Déjate Amar</div>
+    <div class="track" data-src="Musica/Chayanne - Humanos a Marte.mp3">22. Chayanne – Humanos a Marte</div>
+    <div class="track" data-src="Musica/Banda El Recodo - Y Llegaste Tú.mp3">23. Banda El Recodo – Y Llegaste Tú</div>
+    <div class="track" data-src="Musica/Sin Bandera - Y llegaste Tú.mp3">24. Sin Bandera – Y llegaste Tú</div>
+    <div class="track" data-src="Musica/Rio Roma, Calibre 50 - Tu Eres Mi Amor.mp3">25. Río Roma, Calibre 50 – Tú Eres Mi Amor</div>
+    <div class="track" data-src="Musica/Ritchie Valens - We Belong Together.mp3">26. Ritchie Valens – We Belong Together</div>
+    <div class="track" data-src="Musica/KAROL G - Ocean.mp3">27. Karol G – Ocean</div>
+    <div class="track" data-src="Musica/Cuco - Piel Canela.mp3">28. Cuco – Piel Canela</div>
+    <div class="track" data-src="Musica/Lauri Garcia - Miel.mp3">29. Lauri García – Miel</div>
+    <div class="track" data-src="Musica/Los Primos MX - Mi Bello Ángel.mp3">30. Los Primos MX – Mi Bello Ángel</div>
+
+    <div class="track" data-src="Musica/Te Presumo - Banda El Recodo.mp3">31. Banda El Recodo – Te Presumo</div>
+    <div class="track" data-src="Musica/Valentin Elizalde - La Más Deseada.mp3">32. Valentín Elizalde – La Más Deseada</div>
+    <div class="track" data-src="Musica/Tiago PZK, Ke Personajes - Piel.mp3">33. Tiago PZK, Ke Personajes – Piel</div>
+    <div class="track" data-src="Musica/Fuerza Regida, Grupo Frontera - COQUETA.mp3">34. Fuerza Regida, Grupo Frontera – Coqueta</div>
+    <div class="track" data-src="Musica/Jósean Log - Chachacha.mp3">35. Jósean Log – Chachachá</div>
+    <div class="track" data-src="Musica/Koko - Valiente.mp3">36. Koko – Valiente</div>
+    <div class="track" data-src="Musica/Regalo De Dios - Julión Álvarez Y Su Norteño Banda.mp3">37. Julián Álvarez – Regalo de Dios</div>
+    <div class="track" data-src="Musica/Espinoza Paz - Para No Perderte.mp3">38. Espinoza Paz – Para No Perderte</div>
+    <div class="track" data-src="Musica/EVÍC - El afortunado.mp3">39. EVÍC - El afortunado</div>
+    <div class="track" data-src="Musica/Emmanuellcortess_ - Amor.mp3">40. Emmanuellcortess_ - Amor</div>
+
+    <div class="track" data-src="Musica/El David - Terraformar.mp3">41. El David – Terraformar</div>
+    <div class="track" data-src="Musica/nomás tú - El David.mp3">42. Nomás Tú – El David</div>
+    <div class="track" data-src="Musica/Erich - Igual No Debo.mp3">43. Erick – Igual No Debo</div>
+    <div class="track" data-src="Musica/Diseñame - Joan Sebastian.mp3">44. Joan Sebastian – Diseñame</div>
+    <div class="track" data-src="Musica/Cristian Castro - Azul.mp3">45. Cristian Castro – Azul</div>
+    <div class="track" data-src="Musica/Alemán, Neton Vega - Te Quería Ver.mp3">46. Alemán, Neton Vega – Te Quería Ver</div>
+    <div class="track" data-src="Musica/Bobby Pulido - Desvelado.mp3">47. Bobby Pulido – Desvelado</div>
+    <div class="track" data-src="Musica/Manuel Medrano - Bajo El Agua.mp3">48. Manuel Medrano – Bajo El Agua</div>
+    <div class="track" data-src="Musica/Rauw Alejandro, Romeo Santos - Khé.mp3">49. Rauw Alejandro, Romeo Santos – Khé</div>
+    <div class="track" data-src="Musica/Rauw Alejandro y Laura Pausini - Se Fue.mp3">50. Rauw Alejandro & Laura Pausini – Se Fue</div>
+
+  </div>
+</div>
+</section>
+
+<div class="divider-msg">💛 Desliza hacia abajo para leer lo que siento 💛</div>
+
+<div class="messages">
+  <div class="heart">Espero que este detalle te haga sonreír</div>
+  <div class="heart">Te mando un fuerte abrazo lleno de cariño</div>
+  <div class="heart">Quiero que sepas que pienso en ti</div>
+  <div class="heart">Eres alguien muy especial para mí</div>
+</div>
+
+<div class="cta-wrap">
+  <a class="cta-spotify"
+     href="https://open.spotify.com/playlist/5BtnVAMq43ueNdEX50H9kh?si=16b490de0e6c4a48"
+     target="_blank" rel="noopener noreferrer"
+     aria-label="Abrir nuestra playlist en Spotify">
+    <span class="ico" aria-hidden="true">
+      <!-- Logotipo simple estilo Spotify con anillo dorado -->
+      <svg viewBox="0 0 32 32">
+        <circle class="ring" cx="16" cy="16" r="15"></circle>
+        <circle class="dot" cx="16" cy="16" r="6.2"></circle>
+        <!-- 3 ondas -->
+        <path class="wave" d="M11 14.2c3-.9 7-.7 9.9.6"/>
+        <path class="wave" d="M11 16.6c2.6-.7 6-.5 8.4.5" style="stroke-width:1.8"/>
+        <path class="wave" d="M11 18.7c2-.5 4.5-.3 6.2.4" style="stroke-width:1.6"/>
+      </svg>
+    </span>
+    <span>Escucha en nuestra Playlist</span>
+  </a>
+</div>
+<div class="cta-caption">Si te gusta, seguimos ahí y sumamos nuevas canciones.</div>
+
+
+<p class="signature">— M</p>
+
+
+
+<audio id="audio" preload="metadata" playsinline webkit-playsinline></audio>
+
+<script>
+/* --------- Elements --------- */
+const A=document.getElementById('audio'),
+  playBtn=document.getElementById('playBtn'),
+  playIcon=document.getElementById('playIcon'),
+  bar=document.getElementById('bar'),fill=document.getElementById('fill'),
+  cur=document.getElementById('cur'),dur=document.getElementById('dur'),
+  title=document.getElementById('songTitle'),
+  tracks=document.querySelectorAll('.track'),
+  prev=document.getElementById('prev'),next=document.getElementById('next'),
+  repeat=document.getElementById('repeat'),shuffle=document.getElementById('shuffle'),
+  toggle=document.getElementById('toggleList'),arrow=document.getElementById('arrow'),
+  extra=document.getElementById('extra'),
+  sunWrap=document.getElementById('sunWrap'),
+  sunflower=document.getElementById('sunflower'),
+  lockScreen=document.getElementById('lockScreen'),
+  unlockBtn=document.getElementById('unlockBtn');
+
+let idx=0,loop=false,rand=false;
+const list=[...tracks];
+
+/* --------- Cargar pista --------- */
+function loadTrack(i, autoplay=false){
+  idx = ((i%list.length)+list.length)%list.length;
+  list.forEach(t=>t.classList.remove('active'));
+  list[idx].classList.add('active');
+  A.src = list[idx].dataset.src;
+  title.textContent = list[idx].textContent;
+  A.load();
+  if (autoplay) A.play().catch(()=>{});
+}
+if(list.length) loadTrack(0,false);
+
+/* --------- UI del reproductor --------- */
+function fmt(t){if(!isFinite(t)) return '0:00';const m=Math.floor(t/60);const s=Math.floor(t%60).toString().padStart(2,'0');return `${m}:${s}`;}
+tracks.forEach((t,i)=>t.addEventListener('click',()=>loadTrack(i,true)));
+playBtn.addEventListener('click',()=>{ if(!A.src) return; (A.paused?A.play():A.pause()); });
+A.addEventListener('play',()=>{ playIcon.innerHTML='<rect x="6" y="5" width="4" height="14"/><rect x="14" y="5" width="4" height="14"/>'; startAudioReactive(); });
+A.addEventListener('pause',()=>{ playIcon.innerHTML='<path d="M8 5v14l11-7z"/>'; stopAudioReactive(); });
+A.addEventListener('loadedmetadata',()=>dur.textContent=fmt(A.duration));
+A.addEventListener('ended',()=>{ if(loop){ A.play(); } else { next.click(); } });
+function tick(){ fill.style.width=(A.currentTime/A.duration*100||0)+'%'; cur.textContent=fmt(A.currentTime); requestAnimationFrame(tick); } tick();
+bar.addEventListener('click',e=>{ if(!A.duration) return; const r=bar.getBoundingClientRect(); A.currentTime=((e.clientX-r.left)/r.width)*A.duration; });
+next.addEventListener('click',()=>{ idx = rand? Math.floor(Math.random()*list.length) : idx+1; loadTrack(idx,true); });
+prev.addEventListener('click',()=>{ loadTrack(idx-1,true); });
+repeat.addEventListener('click',()=>{ loop=!loop; repeat.style.opacity = loop? '1':'0.6'; });
+shuffle.addEventListener('click',()=>{ rand=!rand; shuffle.style.opacity = rand? '1':'0.6'; });
+toggle.addEventListener('click',()=>{ const show=extra.classList.toggle('show'); arrow.style.transform=show? "rotate(180deg)" : "rotate(0deg)"; });
+
+/* --------- Aparición de corazones --------- */
+const hearts=document.querySelectorAll('.heart');
+const obs=new IntersectionObserver(entries=>{ entries.forEach(e=>{ if(e.isIntersecting) e.target.classList.add('show'); }); },{threshold:.2});
+hearts.forEach(h=>obs.observe(h));
+
+/* --------- Flor/Halo audio-reactivo --------- */
+let ctx, analyser, data, srcNode, rafId;
+function setupAudio(){ if (ctx) return; ctx = new (window.AudioContext || window.webkitAudioContext)(); srcNode = ctx.createMediaElementSource(A); analyser = ctx.createAnalyser(); analyser.fftSize = 512; srcNode.connect(analyser); analyser.connect(ctx.destination); data = new Uint8Array(analyser.frequencyBinCount); }
+function loopReactive(){
+  analyser.getByteTimeDomainData(data);
+  let sum=0; for(let i=0;i<data.length;i++){ const v=data[i]-128; sum+=v*v; }
+  const rms = Math.sqrt(sum/data.length)/128;
+  const level = Math.min(1, rms*2.8);
+  sunWrap.style.setProperty('--haloS', (1+level*0.22).toFixed(3));
+  sunWrap.style.setProperty('--haloO', (0.55+level*0.45).toFixed(3));
+  sunflower.style.setProperty('--sunS', (1+level*0.06).toFixed(3));
+  rafId = requestAnimationFrame(loopReactive);
+}
+function startAudioReactive(){ setupAudio(); ctx.resume().catch(()=>{}); cancelAnimationFrame(rafId); rafId = requestAnimationFrame(loopReactive); }
+function stopAudioReactive(){ cancelAnimationFrame(rafId); rafId=null; sunWrap.style.setProperty('--haloS','1'); sunWrap.style.setProperty('--haloO','.7'); sunflower.style.setProperty('--sunS','1'); }
+
+/* --------- Desbloqueo + autoplay --------- */
+unlockBtn.addEventListener('click', async ()=>{
+  lockScreen.classList.add('opening');
+  await new Promise(r=>setTimeout(r,650));
+  lockScreen.style.display='none';
+  document.body.classList.add('visible');
+  loadTrack(0,true);
+
+    repeat.style.opacity = '0.6';
+    shuffle.style.opacity = '0.6';
+
+
+  console.log("💛 Esto lo hice solo para ti, Berenice.");
+});
+</script>
+</body>
+</html>
